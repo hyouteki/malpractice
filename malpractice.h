@@ -36,6 +36,7 @@ typedef struct Data {
 } Data;
 
 typedef enum {
+	Model_Init_Zeroes,
 	Model_Init_Random,
 	Model_Init_Xavier,
 } Model_InitTechnique;
@@ -54,6 +55,8 @@ fvec *zero_initialize_fvec(size_t size);
 fvec *rand_initialize_fvec(size_t size);
 fvec *xavier_initialize_fvec(size_t n_in, size_t n_out);
 void set_uniform_fvec(fvec *vec, float limit);
+fvec *read_fvec_from_file(FILE *file);
+void write_fvec_to_file(fvec *vec, FILE *file);
 void deinitialize_fvec(fvec *vec);
 
 Data *zero_initialize_data(size_t sample_size, size_t num_samples);
@@ -66,6 +69,8 @@ const char *model_init_technique_name(Model_InitTechnique tech);
 Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
 						Model_InitTechnique tech);
 void describe_model(Model *model);
+Model *load_model(const char *filepath);
+void save_model(Model *model, const char *filepath);
 void deinitialize_model(Model *model);
 
 void forward(fvec *input, fvec *hidden, fvec *output, Model *model);
@@ -104,6 +109,19 @@ void set_uniform_fvec(fvec *vec, float limit) {
 		// Uniform distribution between [-limit, limit]
         vec->vals[i] = ((float)rand()/RAND_MAX)*2*limit - limit;
     }
+}
+
+fvec *read_fvec_from_file(FILE *file) {
+    fvec *vec = (fvec *)malloc(sizeof(fvec));
+    fread(&vec->size, sizeof(size_t), 1, file);
+    vec->vals = (float *)malloc(sizeof(float)*vec->size);
+    fread(vec->vals, sizeof(float), vec->size, file);
+    return vec;
+}
+
+void write_fvec_to_file(fvec *vec, FILE *file) {
+	fwrite(&vec->size, sizeof(size_t), 1, file);
+	fwrite(vec->vals, sizeof(float), vec->size, file);
 }
 
 void deinitialize_fvec(fvec *vec) {
@@ -174,6 +192,8 @@ void deinitialize_data(Data *data) {
 
 const char *model_init_technique_name(Model_InitTechnique tech) {
 	switch (tech) {
+	case Model_Init_Zeroes:
+		return "Zeroes";	
 	case Model_Init_Random:
 		return "Random";
 	case Model_Init_Xavier:
@@ -193,6 +213,10 @@ Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_siz
 
 	model->tech = tech;
 	switch (tech) {
+	case Model_Init_Zeroes:
+		model->input_hidden_weights = zero_initialize_fvec(input_size*hidden_size);
+		model->hidden_output_weights = zero_initialize_fvec(hidden_size*output_size);
+		break;
 	case Model_Init_Random:
 		model->input_hidden_weights = rand_initialize_fvec(input_size*hidden_size);
 		model->hidden_output_weights = rand_initialize_fvec(hidden_size*output_size);
@@ -213,6 +237,37 @@ void describe_model(Model *model) {
 		   "Init-Technique: %s\n", model->input_size,
 		   model->hidden_size, model->output_size,
 		   model_init_technique_name(model->tech));
+}
+
+Model *load_model(const char *filepath) {
+	FILE *file = fopen(filepath, "wb");
+	mal_assert(file, "Cannot open file to load model");
+
+	Model *model = (Model *)malloc(sizeof(Model));
+	fread(&model->input_size, sizeof(size_t), 1, file);
+	fread(&model->hidden_size, sizeof(size_t), 1, file);
+	fread(&model->output_size, sizeof(size_t), 1, file);
+	fread(&model->tech, sizeof(Model_InitTechnique), 1, file);
+	model->input_hidden_weights = read_fvec_from_file(file);
+	model->hidden_output_weights = read_fvec_from_file(file);
+
+	fclose(file);
+	return model;
+}
+
+void save_model(Model *model, const char *filepath) {
+	FILE *file = fopen(filepath, "wb");
+	mal_assert(file, "Cannot open file to save model");
+
+	fwrite(&model->input_size, sizeof(size_t), 1, file);
+	fwrite(&model->hidden_size, sizeof(size_t), 1, file);
+	fwrite(&model->output_size, sizeof(size_t), 1, file);
+	fwrite(&model->tech, sizeof(Model_InitTechnique), 1, file);
+	write_fvec_to_file(model->input_hidden_weights, file);
+	write_fvec_to_file(model->hidden_output_weights, file);
+	fclose(file);
+
+	printf("Model saved at '%s'", filepath);
 }
 
 void deinitialize_model(Model *model) {

@@ -99,7 +99,8 @@ void mnist() {
 
     train(train_data, params, model);
     test(test_data, model);
-
+	save_model(model, "mnist/checkpoint1");
+	
 	deinitialize_model(model);
 	deinitialize_data(train_data);
 	deinitialize_data(test_data);
