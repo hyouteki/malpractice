@@ -117,8 +117,7 @@ Data *zero_initialize_data(size_t sample_size, size_t num_samples) {
 }
 
 void describe_data(Data *data) {
-	printf("Sample-Size: %ld\n", data->sample_size);
-	printf("#Samples:    %ld\n", data->num_samples);
+	printf("Sample-Size: %ld, #Samples: %ld\n", data->sample_size, data->num_samples);
 }
 
 // NOTE: splits should not be initialized before the calling of this function,
@@ -263,6 +262,7 @@ void train(Data *data, Parameters params, Model *model) {
 
     for (size_t epoch = 0; epoch < params.epochs; ++epoch) {
         size_t correct = 0;
+		clock_t start = clock();
         for (size_t sample = 0; sample < data->num_samples; ++sample) {
             // Setup input and target for this sample
             memcpy(input->vals, &data->samples[sample*input->size], data->sample_size);
@@ -279,9 +279,11 @@ void train(Data *data, Parameters params, Model *model) {
         }
         
         if (params.log_train_metrics) {
-            printf("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld)\n",
+			double time_elapsed = (double)(clock()-start)/CLOCKS_PER_SEC;
+            printf("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)\n",
                    epoch+1, ((float)correct/data->num_samples)*100,
-				   correct, data->num_samples);
+				   correct, data->num_samples, time_elapsed,
+				   (float)data->num_samples/time_elapsed);
         }
     }
 }
