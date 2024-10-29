@@ -35,11 +35,17 @@ typedef struct Data {
     size_t sample_size;
 } Data;
 
+typedef enum {
+	Model_Init_Random,
+	Model_Init_Xavier,
+} Model_InitTechnique;
+
 typedef struct Model {
     size_t input_size;
     size_t hidden_size;
     size_t output_size;
-    
+
+	Model_InitTechnique tech;
     fvec *input_hidden_weights;
     fvec *hidden_output_weights;
 } Model;
@@ -56,7 +62,10 @@ void partition_data(Data *data, Data **split1, Data **split2, float fraction);
 void normalize_data(Data *data);
 void deinitialize_data(Data *data);
 
-Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size);
+const char *model_init_technique_name(Model_InitTechnique tech);
+Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
+						Model_InitTechnique tech);
+void describe_model(Model *model);
 void deinitialize_model(Model *model);
 
 void forward(fvec *input, fvec *hidden, fvec *output, Model *model);
@@ -163,16 +172,47 @@ void deinitialize_data(Data *data) {
     free(data);
 }
 
-Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size) {
+const char *model_init_technique_name(Model_InitTechnique tech) {
+	switch (tech) {
+	case Model_Init_Random:
+		return "Random";
+	case Model_Init_Xavier:
+	    return "Xavier";
+	default:
+		mal_assert(0, "Invalid model initialization technique");
+	}
+}
+
+Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
+						Model_InitTechnique tech) {
+	
     Model *model = (Model *)malloc(sizeof(Model));
     model->input_size = input_size;
     model->hidden_size = hidden_size;
     model->output_size = output_size;
-    /* model->input_hidden_weights = rand_initialize_fvec(input_size*hidden_size); */
-    model->input_hidden_weights = xavier_initialize_fvec(input_size, hidden_size);
-    /* model->hidden_output_weights = rand_initialize_fvec(hidden_size*output_size); */
-    model->hidden_output_weights = xavier_initialize_fvec(hidden_size, output_size);
+
+	model->tech = tech;
+	switch (tech) {
+	case Model_Init_Random:
+		model->input_hidden_weights = rand_initialize_fvec(input_size*hidden_size);
+		model->hidden_output_weights = rand_initialize_fvec(hidden_size*output_size);
+		break;
+	case Model_Init_Xavier:
+		model->input_hidden_weights = xavier_initialize_fvec(input_size, hidden_size);
+		model->hidden_output_weights = xavier_initialize_fvec(hidden_size, output_size);
+		break;
+	default:
+		mal_assert(0, "Invalid model initialization technique");
+	}
+
     return model;
+}
+
+void describe_model(Model *model) {
+	printf("Input-Size: %ld, Hidden-Size: %ld, Output-Size: %ld, "
+		   "Init-Technique: %s\n", model->input_size,
+		   model->hidden_size, model->output_size,
+		   model_init_technique_name(model->tech));
 }
 
 void deinitialize_model(Model *model) {

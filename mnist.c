@@ -80,7 +80,8 @@ void mnist() {
 	size_t hidden_size = 128;
 	size_t output_size = 10;
 	
-	Model *model = initialize_model(input_size, hidden_size, output_size);
+	Model *model = initialize_model(input_size, hidden_size, output_size, Model_Init_Random);
+	describe_model(model);
 
 	Data *data = data_extraction();
 	describe_data(data);
