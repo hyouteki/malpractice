@@ -1,9 +1,11 @@
 #!/bin/bash
-
 set -xe
 
 CC="gcc"
-LIBS="-lm"
+CFLAGS="-Wall -Wextra -Wno-unused-result -O5"
+INCLUDE_PATHS="./"
+LFLAGS="-lm"
+DEMO="mnist"
 
 if [ ! -d "mnist" ]; then
 	mkdir mnist
@@ -14,5 +16,5 @@ if [ ! -d "mnist" ]; then
 fi
 
 mkdir -p ./build
-$CC mnist.c -o ./build/mnist $LIBS
-./build/mnist
+$CC "${DEMO}.c" $CFLAGS -I $INCLUDE_PATHS -o "./build/${DEMO}" $LFLAGS
+./build/$DEMO

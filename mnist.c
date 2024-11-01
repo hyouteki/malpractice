@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "malpractice.h"
+#include <malpractice.h>
 
 #define ImagesFilePath "mnist/train-images-idx3-ubyte"
 #define LabelsFilePath "mnist/train-labels-idx1-ubyte"
@@ -46,7 +46,6 @@ Data *data_extraction() {
 	file = fopen(LabelsFilePath, "rb");
 	mal_assert(file, "Cannot open file");
 
-	magic_number;
 	fread(&magic_number, sizeof(uint32_t), 1, file);
 	magic_number = __builtin_bswap32(magic_number);
 	if (magic_number != 2049) {

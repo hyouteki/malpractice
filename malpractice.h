@@ -106,7 +106,7 @@ fvec *xavier_initialize_fvec(size_t n_in, size_t n_out) {
 }
 
 void set_uniform_fvec(fvec *vec, float limit) {
-	for (int i = 0; i < vec->size; ++i) {
+	for (size_t i = 0; i < vec->size; ++i) {
 		// Uniform distribution between [-limit, limit]
         vec->vals[i] = ((float)rand()/RAND_MAX)*2*limit - limit;
     }
