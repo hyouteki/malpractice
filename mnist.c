@@ -84,6 +84,7 @@ void mnist() {
 	describe_model(model);
 
 	Data *data = data_extraction();
+	shuffle_data(data);
 	describe_data(data);
 	normalize_data(data);
 
@@ -99,7 +100,7 @@ void mnist() {
 
     train(train_data, params, model);
     test(test_data, model);
-	save_model(model, "mnist/checkpoint1");
+	save_model(model, "mnist_checkpoint");
 	
 	deinitialize_model(model);
 	deinitialize_data(train_data);

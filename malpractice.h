@@ -62,6 +62,7 @@ void deinitialize_fvec(fvec *vec);
 Data *zero_initialize_data(size_t sample_size, size_t num_samples);
 void describe_data(Data *data);
 void partition_data(Data *data, Data **split1, Data **split2, float fraction);
+void shuffle_data(Data *data);
 void normalize_data(Data *data);
 void deinitialize_data(Data *data);
 
@@ -166,6 +167,36 @@ void partition_data(Data *data, Data **split1, Data **split2, float fraction) {
 		   sizeof(size_t)*split2_num_samples);
 }
 
+void shuffle_data(Data *data) {
+	size_t n = data->num_samples, ss = data->sample_size;
+	size_t *shuffle_list = (size_t *)malloc(n*sizeof(size_t));
+	for (size_t i = 0; i < n; ++i) {
+	    shuffle_list[i] = i;
+	}
+	for (size_t i = 0; i < n; ++i) {
+		size_t rand_i = rand()%n;
+		size_t tmp = shuffle_list[i];
+	    shuffle_list[i] = shuffle_list[rand_i];
+		shuffle_list[rand_i] = tmp;
+	}
+
+    float *new_samples = (float *)malloc(n*ss*sizeof(float));
+	size_t *new_labels = (size_t *)malloc(n*sizeof(size_t));
+
+	for (size_t i = 0; i < n; ++i) {
+		for (size_t j = 0; j < ss; ++j) {
+			new_samples[i*ss+j] = data->samples[shuffle_list[i]*ss+j];
+		}
+		new_labels[i] = data->labels[shuffle_list[i]];
+	}
+
+	free(data->samples);
+	free(data->labels);
+	free(shuffle_list);
+	data->samples = new_samples;
+	data->labels = new_labels;
+}
+
 // Normalizes the data samples to be in the range of [0, 1]
 void normalize_data(Data *data) {
 	float min_v = data->samples[0], max_v = data->samples[0];
@@ -267,7 +298,7 @@ void save_model(Model *model, const char *filepath) {
 	write_fvec_to_file(model->hidden_output_weights, file);
 	fclose(file);
 
-	printf("Model saved at '%s'", filepath);
+	printf("Model saved at '%s'\n", filepath);
 }
 
 void deinitialize_model(Model *model) {
