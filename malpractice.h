@@ -6,16 +6,10 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <lodge.h>
 
 #define sigmoid(x) (1.0f/(1.0f+expf(-x)))
 #define sigmoid_derivative(x) (x*(1-x))
-#define mal_assert(condition, message)							\
-    do {														\
-        if (!(condition)) {										\
-            fprintf(stderr, "Assertion Failed: %s\n", message);	\
-            exit(EXIT_FAILURE);									\
-        }														\
-    } while (0)
 
 typedef struct fvec {
     float *vals;
@@ -36,9 +30,9 @@ typedef struct Data {
 } Data;
 
 typedef enum {
-	Model_Init_Zeroes,
-	Model_Init_Random,
-	Model_Init_Xavier,
+    Model_Init_Zeroes,
+    Model_Init_Random,
+    Model_Init_Xavier,
 } Model_InitTechnique;
 
 typedef struct Model {
@@ -46,7 +40,7 @@ typedef struct Model {
     size_t hidden_size;
     size_t output_size;
 
-	Model_InitTechnique tech;
+    Model_InitTechnique tech;
     fvec *input_hidden_weights;
     fvec *hidden_output_weights;
 } Model;
@@ -68,7 +62,7 @@ void deinitialize_data(Data *data);
 
 const char *model_init_technique_name(Model_InitTechnique tech);
 Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
-						Model_InitTechnique tech);
+                        Model_InitTechnique tech);
 void describe_model(Model *model);
 Model *load_model(const char *filepath);
 void save_model(Model *model, const char *filepath);
@@ -102,12 +96,12 @@ fvec *xavier_initialize_fvec(size_t n_in, size_t n_out) {
     fvec *vec = zero_initialize_fvec(n_in*n_out);
     float limit = sqrt(6.0f/(n_in+n_out));
     set_uniform_fvec(vec, limit);
-	return vec;
+    return vec;
 }
 
 void set_uniform_fvec(fvec *vec, float limit) {
-	for (size_t i = 0; i < vec->size; ++i) {
-		// Uniform distribution between [-limit, limit]
+    for (size_t i = 0; i < vec->size; ++i) {
+        // Uniform distribution between [-limit, limit]
         vec->vals[i] = ((float)rand()/RAND_MAX)*2*limit - limit;
     }
 }
@@ -121,8 +115,8 @@ fvec *read_fvec_from_file(FILE *file) {
 }
 
 void write_fvec_to_file(fvec *vec, FILE *file) {
-	fwrite(&vec->size, sizeof(size_t), 1, file);
-	fwrite(vec->vals, sizeof(float), vec->size, file);
+    fwrite(&vec->size, sizeof(size_t), 1, file);
+    fwrite(vec->vals, sizeof(float), vec->size, file);
 }
 
 void deinitialize_fvec(fvec *vec) {
@@ -145,74 +139,75 @@ Data *zero_initialize_data(size_t sample_size, size_t num_samples) {
 }
 
 void describe_data(Data *data) {
-	printf("Sample-Size: %ld, #Samples: %ld\n", data->sample_size, data->num_samples);
+    printf("Sample-Size: %ld, #Samples: %ld\n", data->sample_size, data->num_samples);
 }
 
 // NOTE: splits should not be initialized before the calling of this function,
 //       the original data is not deinitialized
 void partition_data(Data *data, Data **split1, Data **split2, float fraction) {
-	mal_assert(fraction >= 0 && fraction < 1, "Fraction should lie in [0, 1]");
+    lodge_assert(fraction >= 0 && fraction < 1,
+                 "Fraction should lie in [0, 1]; found '%f'", fraction);
 
-	size_t split1_num_samples = (size_t)(data->num_samples*fraction);
-	*split1 = zero_initialize_data(data->sample_size, split1_num_samples);
-	memcpy((*split1)->samples, data->samples,
-		   sizeof(float)*split1_num_samples*data->sample_size);
-	memcpy((*split1)->labels, data->labels, sizeof(size_t)*split1_num_samples);
+    size_t split1_num_samples = (size_t)(data->num_samples*fraction);
+    *split1 = zero_initialize_data(data->sample_size, split1_num_samples);
+    memcpy((*split1)->samples, data->samples,
+           sizeof(float)*split1_num_samples*data->sample_size);
+    memcpy((*split1)->labels, data->labels, sizeof(size_t)*split1_num_samples);
 
-	size_t split2_num_samples = data->num_samples-split1_num_samples;
-	*split2 = zero_initialize_data(data->sample_size, split2_num_samples);
-	memcpy((*split2)->samples, data->samples+data->sample_size*split1_num_samples,
-		   sizeof(float)*split2_num_samples*data->sample_size);
-	memcpy((*split2)->labels, data->labels+data->sample_size,
-		   sizeof(size_t)*split2_num_samples);
+    size_t split2_num_samples = data->num_samples-split1_num_samples;
+    *split2 = zero_initialize_data(data->sample_size, split2_num_samples);
+    memcpy((*split2)->samples, data->samples+data->sample_size*split1_num_samples,
+           sizeof(float)*split2_num_samples*data->sample_size);
+    memcpy((*split2)->labels, data->labels+data->sample_size,
+           sizeof(size_t)*split2_num_samples);
 }
 
 void shuffle_data(Data *data) {
-	size_t n = data->num_samples, ss = data->sample_size;
-	size_t *shuffle_list = (size_t *)malloc(n*sizeof(size_t));
-	for (size_t i = 0; i < n; ++i) {
-	    shuffle_list[i] = i;
-	}
-	for (size_t i = 0; i < n; ++i) {
-		size_t rand_i = rand()%n;
-		size_t tmp = shuffle_list[i];
-	    shuffle_list[i] = shuffle_list[rand_i];
-		shuffle_list[rand_i] = tmp;
-	}
+    size_t n = data->num_samples, ss = data->sample_size;
+    size_t *shuffle_list = (size_t *)malloc(n*sizeof(size_t));
+    for (size_t i = 0; i < n; ++i) {
+        shuffle_list[i] = i;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        size_t rand_i = rand()%n;
+        size_t tmp = shuffle_list[i];
+        shuffle_list[i] = shuffle_list[rand_i];
+        shuffle_list[rand_i] = tmp;
+    }
 
     float *new_samples = (float *)malloc(n*ss*sizeof(float));
-	size_t *new_labels = (size_t *)malloc(n*sizeof(size_t));
+    size_t *new_labels = (size_t *)malloc(n*sizeof(size_t));
 
-	for (size_t i = 0; i < n; ++i) {
-		for (size_t j = 0; j < ss; ++j) {
-			new_samples[i*ss+j] = data->samples[shuffle_list[i]*ss+j];
-		}
-		new_labels[i] = data->labels[shuffle_list[i]];
-	}
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < ss; ++j) {
+            new_samples[i*ss+j] = data->samples[shuffle_list[i]*ss+j];
+        }
+        new_labels[i] = data->labels[shuffle_list[i]];
+    }
 
-	free(data->samples);
-	free(data->labels);
-	free(shuffle_list);
-	data->samples = new_samples;
-	data->labels = new_labels;
+    free(data->samples);
+    free(data->labels);
+    free(shuffle_list);
+    data->samples = new_samples;
+    data->labels = new_labels;
 }
 
 // Normalizes the data samples to be in the range of [0, 1]
 void normalize_data(Data *data) {
-	float min_v = data->samples[0], max_v = data->samples[0];
+    float min_v = data->samples[0], max_v = data->samples[0];
     for (size_t i = 0; i < data->sample_size*data->num_samples; ++i) {
-		if (data->samples[i] < min_v) {
-			min_v = data->samples[i];
-		}
-		if (data->samples[i] > max_v) {
-			max_v = data->samples[i];
-		}
-	}
-	
-    mal_assert(max_v != min_v, "Normalization range cannot be zero");
-	for (size_t i = 0; i < data->sample_size*data->num_samples; ++i) {
-		data->samples[i] = (data->samples[i]-min_v)/(max_v-min_v);
-	}
+        if (data->samples[i] < min_v) {
+            min_v = data->samples[i];
+        }
+        if (data->samples[i] > max_v) {
+            max_v = data->samples[i];
+        }
+    }
+    
+    lodge_assert(max_v != min_v, "Normalization range cannot be zero");
+    for (size_t i = 0; i < data->sample_size*data->num_samples; ++i) {
+        data->samples[i] = (data->samples[i]-min_v)/(max_v-min_v);
+    }
 }
 
 void deinitialize_data(Data *data) {
@@ -222,83 +217,83 @@ void deinitialize_data(Data *data) {
 }
 
 const char *model_init_technique_name(Model_InitTechnique tech) {
-	switch (tech) {
-	case Model_Init_Zeroes:
-		return "Zeroes";	
-	case Model_Init_Random:
-		return "Random";
-	case Model_Init_Xavier:
-	    return "Xavier";
-	default:
-		mal_assert(0, "Invalid model initialization technique");
-	}
+    switch (tech) {
+    case Model_Init_Zeroes:
+        return "Zeroes";    
+    case Model_Init_Random:
+        return "Random";
+    case Model_Init_Xavier:
+        return "Xavier";
+    default:
+        lodge_assert(0, "Invalid model initialization technique '%d'", tech);
+    }
 }
 
 Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
-						Model_InitTechnique tech) {
-	
+                        Model_InitTechnique tech) {
+    
     Model *model = (Model *)malloc(sizeof(Model));
     model->input_size = input_size;
     model->hidden_size = hidden_size;
     model->output_size = output_size;
 
-	model->tech = tech;
-	switch (tech) {
-	case Model_Init_Zeroes:
-		model->input_hidden_weights = zero_initialize_fvec(input_size*hidden_size);
-		model->hidden_output_weights = zero_initialize_fvec(hidden_size*output_size);
-		break;
-	case Model_Init_Random:
-		model->input_hidden_weights = rand_initialize_fvec(input_size*hidden_size);
-		model->hidden_output_weights = rand_initialize_fvec(hidden_size*output_size);
-		break;
-	case Model_Init_Xavier:
-		model->input_hidden_weights = xavier_initialize_fvec(input_size, hidden_size);
-		model->hidden_output_weights = xavier_initialize_fvec(hidden_size, output_size);
-		break;
-	default:
-		mal_assert(0, "Invalid model initialization technique");
-	}
+    model->tech = tech;
+    switch (tech) {
+    case Model_Init_Zeroes:
+        model->input_hidden_weights = zero_initialize_fvec(input_size*hidden_size);
+        model->hidden_output_weights = zero_initialize_fvec(hidden_size*output_size);
+        break;
+    case Model_Init_Random:
+        model->input_hidden_weights = rand_initialize_fvec(input_size*hidden_size);
+        model->hidden_output_weights = rand_initialize_fvec(hidden_size*output_size);
+        break;
+    case Model_Init_Xavier:
+        model->input_hidden_weights = xavier_initialize_fvec(input_size, hidden_size);
+        model->hidden_output_weights = xavier_initialize_fvec(hidden_size, output_size);
+        break;
+    default:
+        lodge_assert(0, "Invalid model initialization technique '%d'", tech);
+    }
 
     return model;
 }
 
 void describe_model(Model *model) {
-	printf("Input-Size: %ld, Hidden-Size: %ld, Output-Size: %ld, "
-		   "Init-Technique: %s\n", model->input_size,
-		   model->hidden_size, model->output_size,
-		   model_init_technique_name(model->tech));
+    printf("Input-Size: %ld, Hidden-Size: %ld, Output-Size: %ld, "
+           "Init-Technique: %s\n", model->input_size,
+           model->hidden_size, model->output_size,
+           model_init_technique_name(model->tech));
 }
 
 Model *load_model(const char *filepath) {
-	FILE *file = fopen(filepath, "wb");
-	mal_assert(file, "Cannot open file to load model");
+    FILE *file = fopen(filepath, "wb");
+    lodge_assert(file, "Cannot open file to load model");
 
-	Model *model = (Model *)malloc(sizeof(Model));
-	fread(&model->input_size, sizeof(size_t), 1, file);
-	fread(&model->hidden_size, sizeof(size_t), 1, file);
-	fread(&model->output_size, sizeof(size_t), 1, file);
-	fread(&model->tech, sizeof(Model_InitTechnique), 1, file);
-	model->input_hidden_weights = read_fvec_from_file(file);
-	model->hidden_output_weights = read_fvec_from_file(file);
+    Model *model = (Model *)malloc(sizeof(Model));
+    fread(&model->input_size, sizeof(size_t), 1, file);
+    fread(&model->hidden_size, sizeof(size_t), 1, file);
+    fread(&model->output_size, sizeof(size_t), 1, file);
+    fread(&model->tech, sizeof(Model_InitTechnique), 1, file);
+    model->input_hidden_weights = read_fvec_from_file(file);
+    model->hidden_output_weights = read_fvec_from_file(file);
 
-	fclose(file);
-	return model;
+    fclose(file);
+    return model;
 }
 
 void save_model(Model *model, const char *filepath) {
-	FILE *file = fopen(filepath, "wb");
-	mal_assert(file, "Cannot open file to save model");
+    FILE *file = fopen(filepath, "wb");
+    lodge_assert(file, "Cannot open file to save model");
 
-	fwrite(&model->input_size, sizeof(size_t), 1, file);
-	fwrite(&model->hidden_size, sizeof(size_t), 1, file);
-	fwrite(&model->output_size, sizeof(size_t), 1, file);
-	fwrite(&model->tech, sizeof(Model_InitTechnique), 1, file);
-	write_fvec_to_file(model->input_hidden_weights, file);
-	write_fvec_to_file(model->hidden_output_weights, file);
-	fclose(file);
+    fwrite(&model->input_size, sizeof(size_t), 1, file);
+    fwrite(&model->hidden_size, sizeof(size_t), 1, file);
+    fwrite(&model->output_size, sizeof(size_t), 1, file);
+    fwrite(&model->tech, sizeof(Model_InitTechnique), 1, file);
+    write_fvec_to_file(model->input_hidden_weights, file);
+    write_fvec_to_file(model->hidden_output_weights, file);
+    fclose(file);
 
-	printf("Model saved at '%s'\n", filepath);
+    lodge_info("Model saved at '%s'", filepath);
 }
 
 void deinitialize_model(Model *model) {
@@ -337,7 +332,7 @@ void backward(fvec *input, fvec *hidden, fvec *output, fvec *target,
     float hidden_errors[hidden->size];
 
     // Calcluate output_errors
-    mal_assert(target->size == output->size, "Target vector size /= Output vector size");
+    lodge_assert(target->size == output->size, "Target vector size /= Output vector size");
     for (size_t i = 0; i < output->size; ++i) {
         output_errors[i] = (target->vals[i]-output->vals[i])
             *sigmoid_derivative(output->vals[i]);
@@ -388,7 +383,7 @@ void train(Data *data, Parameters params, Model *model) {
 
     for (size_t epoch = 0; epoch < params.epochs; ++epoch) {
         size_t correct = 0;
-		clock_t start = clock();
+        clock_t start = clock();
         for (size_t sample = 0; sample < data->num_samples; ++sample) {
             // Setup input and target for this sample
             memcpy(input->vals, &data->samples[sample*input->size], data->sample_size);
@@ -405,11 +400,11 @@ void train(Data *data, Parameters params, Model *model) {
         }
         
         if (params.log_train_metrics) {
-			double time_elapsed = (double)(clock()-start)/CLOCKS_PER_SEC;
-            printf("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)\n",
-                   epoch+1, ((float)correct/data->num_samples)*100,
-				   correct, data->num_samples, time_elapsed,
-				   (float)data->num_samples/time_elapsed);
+            double time_elapsed = (double)(clock()-start)/CLOCKS_PER_SEC;
+            lodge_info("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)",
+                       epoch+1, ((float)correct/data->num_samples)*100,
+                       correct, data->num_samples, time_elapsed,
+                       (float)data->num_samples/time_elapsed);
         }
     }
 }
@@ -429,8 +424,8 @@ void test(Data *data, Model *model) {
         }
     }
     
-    printf("Test Accuracy: %.2f%% (%ld/%ld)\n",
-		   ((float)correct/data->num_samples)*100, correct, data->num_samples);
+    lodge_info("Test Accuracy: %.2f%% (%ld/%ld)",
+               ((float)correct/data->num_samples)*100, correct, data->num_samples);
 }
 
 #endif // MALPRACTICE_H_

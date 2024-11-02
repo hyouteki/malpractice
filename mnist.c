@@ -7,15 +7,14 @@
 
 Data *data_extraction() {
 	FILE *file = fopen(ImagesFilePath, "rb");
-	mal_assert(file, "Cannot open file");
+	lodge_assert(file, "Cannot open file");
 
 	uint32_t magic_number;
 	fread(&magic_number, sizeof(uint32_t), 1, file);
 	magic_number = __builtin_bswap32(magic_number);
 	if (magic_number != 2051) {
-		fprintf(stderr, "Invalid magic number for mnist images");
 		fclose(file);
-		exit(EXIT_FAILURE);
+		lodge_fatal("Invalid magic number for mnist images");
 	}
 
 	Data *data = (Data *)malloc(sizeof(Data));
@@ -44,20 +43,19 @@ Data *data_extraction() {
 	fclose(file);
 
 	file = fopen(LabelsFilePath, "rb");
-	mal_assert(file, "Cannot open file");
+	lodge_assert(file, "Cannot open file");
 
 	fread(&magic_number, sizeof(uint32_t), 1, file);
 	magic_number = __builtin_bswap32(magic_number);
 	if (magic_number != 2049) {
-		fprintf(stderr, "Invalid magic number for mnist labels");
 		fclose(file);
-		exit(EXIT_FAILURE);
+		lodge_fatal("Invalid magic number for mnist labels");
 	}
 
 	uint32_t num_labels;
 	fread(&num_labels, sizeof(uint32_t), 1, file);
     num_labels = __builtin_bswap32(num_labels);
-	mal_assert(data->num_samples == num_labels, "#Images /= #Labels");
+	lodge_assert(data->num_samples == num_labels, "#Images /= #Labels");
 
 	uint8_t *label_buffer = (uint8_t *)malloc(num_labels*sizeof(uint8_t));
     fread(label_buffer, sizeof(uint8_t), num_labels, file);

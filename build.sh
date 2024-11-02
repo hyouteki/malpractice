@@ -3,8 +3,8 @@ set -xe
 
 CC="gcc"
 CFLAGS="-Wall -Wextra -Wno-unused-result -O5"
-INCLUDE_PATHS="./"
-LFLAGS="-lm"
+INCLUDE_PATHS=("." "lodge")
+LIBS=("m" "pthread")
 DEMO="mnist"
 
 if [ ! -d "mnist" ]; then
@@ -15,6 +15,15 @@ if [ ! -d "mnist" ]; then
     gunzip mnist/train-labels-idx1-ubyte.gz
 fi
 
+for dir in "${INCLUDE_PATHS[@]}"; do
+	CFLAGS="${CFLAGS} -I${dir}"
+done
+
+LFLAGS=""
+for lib in "${LIBS[@]}"; do
+	LFLAGS="${LFLAGS} -l${lib}"
+done
+
 mkdir -p ./build
-$CC "${DEMO}.c" $CFLAGS -I $INCLUDE_PATHS -o "./build/${DEMO}" $LFLAGS
+$CC "${DEMO}.c" $CFLAGS -o "./build/${DEMO}" $LFLAGS
 ./build/$DEMO

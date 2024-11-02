@@ -26,7 +26,7 @@
 
 ## Getting Started
 ```bash
-git clone https://github.com/hyouteki/malpractice
+git clone https://github.com/hyouteki/malpractice --recursive --depth=1
 cd malpractice
 ./build.sh
 ```
@@ -59,5 +59,4 @@ int main() {
     deinitialize_model(model);
     return 0;
 }
-
 ```
