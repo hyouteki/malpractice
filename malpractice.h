@@ -56,6 +56,7 @@ void deinitialize_fvec(fvec *vec);
 Data *zero_initialize_data(size_t sample_size, size_t num_samples);
 void describe_data(Data *data);
 void partition_data(Data *data, Data **split1, Data **split2, float fraction);
+Data *n_partition_data(Data *data, size_t num_chunks);
 void shuffle_data(Data *data);
 void normalize_data(Data *data);
 void deinitialize_data(Data *data);
@@ -161,6 +162,38 @@ void partition_data(Data *data, Data **split1, Data **split2, float fraction) {
     memcpy((*split2)->labels, data->labels+data->sample_size,
            sizeof(size_t)*split2_num_samples);
 }
+
+Data *n_partition_data(Data *data, size_t num_chunks) {
+    lodge_assert(num_chunks > 0, "Number of chunks must be > 0");
+    lodge_assert(data, "Data is NULL");
+    lodge_assert(data->num_samples, "No samples present in Data for partition");
+
+    Data *partitioned_data = (Data *)malloc(num_chunks*sizeof(Data));
+
+    size_t num_samples_per_chunk = data->num_samples / num_chunks;
+    size_t remaining_samples = data->num_samples % num_chunks;
+
+    size_t current_sample_index = 0;
+    for (size_t i = 0; i < num_chunks; i++) {
+        size_t chunk_samples = num_samples_per_chunk;
+        // Add one sample to the chunk if remaining samples exist
+        if (remaining_samples > 0) {
+            chunk_samples++;
+            remaining_samples--;
+        }
+
+        partitioned_data[i] = *zero_initialize_data(data->sample_size, chunk_samples);
+        memcpy(partitioned_data[i].samples,
+               data->samples+current_sample_index*data->sample_size,
+               chunk_samples*data->sample_size*sizeof(float));
+
+        memcpy(partitioned_data[i].labels, data->labels+current_sample_index, chunk_samples * sizeof(size_t));
+        current_sample_index += chunk_samples;
+    }
+
+    return partitioned_data;
+}
+
 
 void shuffle_data(Data *data) {
     size_t n = data->num_samples, ss = data->sample_size;
