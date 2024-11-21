@@ -140,7 +140,7 @@ Data *zero_initialize_data(size_t sample_size, size_t num_samples) {
 }
 
 void describe_data(Data *data) {
-    printf("Sample-Size: %ld, #Samples: %ld\n", data->sample_size, data->num_samples);
+    lodge_info("data description: Sample-Size='%ld', #Samples='%ld'", data->sample_size, data->num_samples);
 }
 
 // NOTE: splits should not be initialized before the calling of this function,
@@ -292,10 +292,9 @@ Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_siz
 }
 
 void describe_model(Model *model) {
-    printf("Input-Size: %ld, Hidden-Size: %ld, Output-Size: %ld, "
-           "Init-Technique: %s\n", model->input_size,
-           model->hidden_size, model->output_size,
-           model_init_technique_name(model->tech));
+    lodge_info("model description: Input-Hidden-Output-Size='%ld-%ld-%ld', "
+        "Init-Technique='%s'", model->input_size, model->hidden_size, model->output_size,
+        model_init_technique_name(model->tech));
 }
 
 Model *load_model(const char *filepath) {
