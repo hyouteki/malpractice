@@ -48,6 +48,7 @@ typedef struct Model {
 fvec *zero_initialize_fvec(size_t size);
 fvec *rand_initialize_fvec(size_t size);
 fvec *xavier_initialize_fvec(size_t n_in, size_t n_out);
+fvec *clone_fvec(fvec *vec);
 void set_uniform_fvec(fvec *vec, float limit);
 fvec *read_fvec_from_file(FILE *file);
 void write_fvec_to_file(fvec *vec, FILE *file);
@@ -62,8 +63,8 @@ void normalize_data(Data *data);
 void deinitialize_data(Data *data);
 
 const char *model_init_technique_name(Model_InitTechnique tech);
-Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
-                        Model_InitTechnique tech);
+Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size, Model_InitTechnique tech);
+Model *clone_model(Model *model);
 void describe_model(Model *model);
 Model *load_model(const char *filepath);
 void save_model(Model *model, const char *filepath);
@@ -98,6 +99,14 @@ fvec *xavier_initialize_fvec(size_t n_in, size_t n_out) {
     float limit = sqrt(6.0f/(n_in+n_out));
     set_uniform_fvec(vec, limit);
     return vec;
+}
+
+fvec *clone_fvec(fvec *vec) {
+    fvec *clone = zero_initialize_fvec(vec->size);
+    for (size_t i = 0; i < vec->size; ++i) {
+        clone->vals[i] = vec->vals[i];
+    }
+    return clone;
 }
 
 void set_uniform_fvec(fvec *vec, float limit) {
@@ -194,7 +203,6 @@ Data *n_partition_data(Data *data, size_t num_chunks) {
     return partitioned_data;
 }
 
-
 void shuffle_data(Data *data) {
     size_t n = data->num_samples, ss = data->sample_size;
     size_t *shuffle_list = (size_t *)malloc(n*sizeof(size_t));
@@ -236,7 +244,7 @@ void normalize_data(Data *data) {
             max_v = data->samples[i];
         }
     }
-    
+
     lodge_assert(max_v != min_v, "Normalization range cannot be zero");
     for (size_t i = 0; i < data->sample_size*data->num_samples; ++i) {
         data->samples[i] = (data->samples[i]-min_v)/(max_v-min_v);
@@ -252,7 +260,7 @@ void deinitialize_data(Data *data) {
 const char *model_init_technique_name(Model_InitTechnique tech) {
     switch (tech) {
     case Model_Init_Zeroes:
-        return "Zeroes";    
+        return "Zeroes";
     case Model_Init_Random:
         return "Random";
     case Model_Init_Xavier:
@@ -262,9 +270,7 @@ const char *model_init_technique_name(Model_InitTechnique tech) {
     }
 }
 
-Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size,
-                        Model_InitTechnique tech) {
-    
+Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size, Model_InitTechnique tech) {
     Model *model = (Model *)malloc(sizeof(Model));
     model->input_size = input_size;
     model->hidden_size = hidden_size;
@@ -289,6 +295,17 @@ Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_siz
     }
 
     return model;
+}
+
+Model *clone_model(Model *model) {
+    Model *clone = (Model *)malloc(sizeof(Model));
+    clone->input_size = model->input_size;
+    clone->hidden_size = model->hidden_size;
+    clone->output_size = model->output_size;
+    clone->tech = model->tech;
+    clone->input_hidden_weights = clone_fvec(model->input_hidden_weights);
+    clone->hidden_output_weights = clone_fvec(model->hidden_output_weights);
+    return clone;
 }
 
 void describe_model(Model *model) {
@@ -430,7 +447,7 @@ void train(Data *data, Parameters params, Model *model) {
                 correct++;
             }
         }
-        
+
         if (params.log_train_metrics) {
             double time_elapsed = (double)(clock()-start)/CLOCKS_PER_SEC;
             lodge_info("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)",
@@ -455,7 +472,7 @@ void test(Data *data, Model *model) {
             correct++;
         }
     }
-    
+
     lodge_info("Test Accuracy: %.2f%% (%ld/%ld)",
                ((float)correct/data->num_samples)*100, correct, data->num_samples);
 }
