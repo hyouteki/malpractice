@@ -20,6 +20,7 @@ typedef struct Parameters {
     float learning_rate;
     size_t epochs;
     int log_train_metrics;
+	const char *train_prefix;
 } Parameters;
 
 typedef struct Data {
@@ -49,7 +50,8 @@ fvec *zero_initialize_fvec(size_t size);
 fvec *rand_initialize_fvec(size_t size);
 fvec *xavier_initialize_fvec(size_t n_in, size_t n_out);
 fvec *clone_fvec(fvec *vec);
-fvec *add_inplace_fvec(fvec *vec, fvec *other);
+void add_inplace_fvec(fvec *vec, fvec *other);
+void normalize_inplace_fvec(fvec *vec, int factor);
 void set_uniform_fvec(fvec *vec, float limit);
 fvec *read_fvec_from_file(FILE *file);
 void write_fvec_to_file(fvec *vec, FILE *file);
@@ -67,7 +69,8 @@ const char *model_init_technique_name(Model_InitTechnique tech);
 Model *initialize_model(size_t input_size, size_t hidden_size, size_t output_size, Model_InitTechnique tech);
 Model *clone_model(Model *model);
 void describe_model(Model *model);
-Model *add_inplace_model(Model *model, Model *other);
+void add_inplace_model(Model *model, Model *other);
+void normalize_inplace_model(Model *model, int factor);
 Model *load_model(const char *filepath);
 void save_model(Model *model, const char *filepath);
 void deinitialize_model(Model *model);
@@ -111,12 +114,18 @@ fvec *clone_fvec(fvec *vec) {
     return clone;
 }
 
-fvec *add_inplace_fvec(fvec *vec, fvec *other) {
+void add_inplace_fvec(fvec *vec, fvec *other) {
     lodge_assert(vec->size == other->size, "fvec size is not same");
     for (size_t i = 0; i < vec->size; ++i) {
         vec->vals[i] += other->vals[i];
     }
-    return vec;
+}
+
+void normalize_inplace_fvec(fvec *vec, int factor) {
+    lodge_assert(factor != 0, "normalizing factor is 0");
+    for (size_t i = 0; i < vec->size; ++i) {
+        vec->vals[i] /= factor;
+    }
 }
 
 void set_uniform_fvec(fvec *vec, float limit) {
@@ -324,13 +333,17 @@ void describe_model(Model *model) {
         model_init_technique_name(model->tech));
 }
 
-Model *add_inplace_model(Model *model, Model *other) {
+void add_inplace_model(Model *model, Model *other) {
     lodge_assert(model->input_size == other->input_size, "model input size is not same");
     lodge_assert(model->hidden_size == other->hidden_size, "model hidden size is not same");
     lodge_assert(model->output_size == other->output_size, "model output size is not same");
     add_inplace_fvec(model->input_hidden_weights, other->input_hidden_weights);
     add_inplace_fvec(model->hidden_output_weights, other->hidden_output_weights);
-    return model;
+}
+
+void normalize_inplace_model(Model *model, int factor) {
+    normalize_inplace_fvec(model->input_hidden_weights, factor);
+    normalize_inplace_fvec(model->hidden_output_weights, factor);
 }
 
 Model *load_model(const char *filepath) {
@@ -469,10 +482,9 @@ void train(Data *data, Parameters params, Model *model) {
 
         if (params.log_train_metrics) {
             double time_elapsed = (double)(clock()-start)/CLOCKS_PER_SEC;
-            lodge_info("Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)",
-                       epoch+1, ((float)correct/data->num_samples)*100,
-                       correct, data->num_samples, time_elapsed,
-                       (float)data->num_samples/time_elapsed);
+            lodge_info("%s Epoch: %ld, Accuracy: %.2f%% (%ld/%ld), Time: %.2fs (%.2fit/s)",
+					   params.train_prefix, epoch+1, ((float)correct/data->num_samples)*100,
+                       correct, data->num_samples, time_elapsed, (float)data->num_samples/time_elapsed);
         }
     }
 }
